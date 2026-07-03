@@ -45,12 +45,38 @@ public class BusSpawner : MonoBehaviour
         // spawn initial limited buses
         for (int i = 0; i < maxActiveBuses; i++)
         {
-            SpawnNextBus();
+            SpawnBusOrPlaceholder(i);
         }
     }
 
     // -------------------- SPAWN --------------------
+    private void SpawnBusOrPlaceholder(int slotIndex)
+    {
+        Vector3 targetPos = GetSpawnPosition(slotIndex);
+        Vector3 startPos = targetPos + Vector3.down * 15f;
 
+        GameObject obj = Instantiate(busPrefab, startPos, Quaternion.identity);
+
+        Bus bus = obj.GetComponent<Bus>();
+
+        if (busQueue.Count > 0)
+        {
+            bus.color = busQueue.Dequeue();
+            bus.SetCapacity(currentBusCapacity);
+            bus.SetLocked(false);
+        }
+        else
+        {
+            bus.SetCapacity(0);
+            bus.SetLocked(true);
+        }
+
+        bus.ApplyColor();
+
+        activeBuses.Insert(slotIndex, bus);
+
+        StartCoroutine(MoveElevatorRoutine(bus, targetPos));
+    }
     private void SpawnNextBus(int slotIndex = -1)
     {
         if (busQueue.Count == 0)
@@ -97,7 +123,8 @@ public class BusSpawner : MonoBehaviour
 
         if (busQueue.Count > 0)
         {
-            SpawnNextBus(slot);
+            //SpawnNextBus(slot);
+            SpawnBusOrPlaceholder(slot);
         }
     }
 

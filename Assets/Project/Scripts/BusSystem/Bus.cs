@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using static GameEnums;
+using UnityEngine.UI;
 
 public class Bus : MonoBehaviour
 {
@@ -12,7 +13,8 @@ public class Bus : MonoBehaviour
 
     [Header("UI")]
     public TextMeshProUGUI RemainingPassanger;
-
+    public Image lockImage;
+    public bool IsLocked { get; private set; }
     [Header("Visuals")]
     public GameObject busModelBody;
 
@@ -30,6 +32,8 @@ public class Bus : MonoBehaviour
     [SerializeField] private float leaveHeight = 15f;
     [SerializeField] private float leaveSpeed = 4f;
 
+
+
     public int boarded = 0;
 
     /// <summary>
@@ -45,10 +49,16 @@ public class Bus : MonoBehaviour
     private bool leaving;
 
     private Vector3 leftClosedPos;
-    private Vector3 leftOpenPos;
-
     private Vector3 rightClosedPos;
+
+    private Vector3 leftClosedScale;
+    private Vector3 rightClosedScale;
+
+    private Vector3 leftOpenPos;
     private Vector3 rightOpenPos;
+
+    private Vector3 leftOpenScale;
+    private Vector3 rightOpenScale;
 
     private void Awake()
     {
@@ -57,13 +67,33 @@ public class Bus : MonoBehaviour
         if (leftDoor != null)
         {
             leftClosedPos = leftDoor.localPosition;
-            leftOpenPos = leftClosedPos + Vector3.left * doorOpenDistance;
+            leftClosedScale = leftDoor.localScale;
+
+            leftOpenPos = new Vector3(
+                0.5f,
+                leftClosedPos.y,
+                leftClosedPos.z);
+
+            leftOpenScale = new Vector3(
+                0f,
+                leftClosedScale.y,
+                leftClosedScale.z);
         }
 
         if (rightDoor != null)
         {
             rightClosedPos = rightDoor.localPosition;
-            rightOpenPos = rightClosedPos + Vector3.right * doorOpenDistance;
+            rightClosedScale = rightDoor.localScale;
+
+            rightOpenPos = new Vector3(
+                -0.5f,
+                rightClosedPos.y,
+                rightClosedPos.z);
+
+            rightOpenScale = new Vector3(
+                0f,
+                rightClosedScale.y,
+                rightClosedScale.z);
         }
 
         StartCoroutine(MoveDoors(false));
@@ -76,6 +106,9 @@ public class Bus : MonoBehaviour
 
     public bool HasSpace()
     {
+        if (IsLocked)
+            return false;
+
         return boarded < capacity;
     }
 
@@ -92,6 +125,9 @@ public class Bus : MonoBehaviour
         if (passenger == null)
             return;
 
+        if (IsLocked)
+            return;
+        
         if (leaving)
             return;
 
@@ -258,33 +294,63 @@ public class Bus : MonoBehaviour
     }
 
     private IEnumerator MoveDoors(bool open)
+{
+    if (leftDoor == null || rightDoor == null)
+        yield break;
+
+    Vector3 startLeftPos = leftDoor.localPosition;
+    Vector3 startRightPos = rightDoor.localPosition;
+
+    Vector3 startLeftScale = leftDoor.localScale;
+    Vector3 startRightScale = rightDoor.localScale;
+
+    Vector3 targetLeftPos = open ? leftOpenPos : leftClosedPos;
+    Vector3 targetRightPos = open ? rightOpenPos : rightClosedPos;
+
+    Vector3 targetLeftScale = open ? leftOpenScale : leftClosedScale;
+    Vector3 targetRightScale = open ? rightOpenScale : rightClosedScale;
+
+    float duration = 1f / doorSpeed;
+    float elapsed = 0f;
+
+    while (elapsed < duration)
     {
-        if (leftDoor == null || rightDoor == null)
-            yield break;
+        elapsed += Time.deltaTime;
+        float t = Mathf.Clamp01(elapsed / duration);
 
-        Vector3 targetLeft = open ? leftOpenPos : leftClosedPos;
-        Vector3 targetRight = open ? rightOpenPos : rightClosedPos;
+        leftDoor.localPosition = Vector3.Lerp(startLeftPos, targetLeftPos, t);
+        rightDoor.localPosition = Vector3.Lerp(startRightPos, targetRightPos, t);
 
-        while (Vector3.Distance(leftDoor.localPosition, targetLeft) > 0.01f ||
-               Vector3.Distance(rightDoor.localPosition, targetRight) > 0.01f)
-        {
-            leftDoor.localPosition = Vector3.MoveTowards(
-                leftDoor.localPosition,
-                targetLeft,
-                doorSpeed * Time.deltaTime);
+        leftDoor.localScale = Vector3.Lerp(startLeftScale, targetLeftScale, t);
+        rightDoor.localScale = Vector3.Lerp(startRightScale, targetRightScale, t);
 
-            rightDoor.localPosition = Vector3.MoveTowards(
-                rightDoor.localPosition,
-                targetRight,
-                doorSpeed * Time.deltaTime);
-
-            yield return null;
-        }
-
-        leftDoor.localPosition = targetLeft;
-        rightDoor.localPosition = targetRight;
+        yield return null;
     }
 
+    leftDoor.localPosition = targetLeftPos;
+    rightDoor.localPosition = targetRightPos;
+
+    leftDoor.localScale = targetLeftScale;
+    rightDoor.localScale = targetRightScale;
+}
+ 
+
+    public void SetLocked(bool locked)
+    {
+        IsLocked = locked;
+
+        lockImage.gameObject.SetActive(locked);
+
+        if (RemainingPassanger != null)
+            RemainingPassanger.gameObject.SetActive(!locked);
+
+        if (locked)
+        {
+            color = PassengerColor.White;
+            ApplyColor();
+            SetReady(false);
+        }
+    }
     private Color GetColorFromEnum(PassengerColor passengerColor)
     {
         switch (passengerColor)

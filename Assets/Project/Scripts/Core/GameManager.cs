@@ -92,7 +92,7 @@ public class GameManager : MonoBehaviour
 
     private void EnterWinState()
     {
-        Time.timeScale = 0f;
+        //Time.timeScale = 0f;
         _uiManager.ShowWinPanel();
     }
 
