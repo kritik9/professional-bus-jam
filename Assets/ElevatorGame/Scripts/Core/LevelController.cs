@@ -41,7 +41,11 @@ namespace ElevatorGame.Core
             var gridManager = DependencyManager.Instance.Resolve<GridManager>();
             if (gridManager != null) gridManager.GenerateGrid();
 
-            // 2. Setup Slots
+            // 2. Setup Characters
+            var characterManager = DependencyManager.Instance.Resolve<ElevatorGame.Characters.CharacterManager>();
+            if (characterManager != null) characterManager.SpawnCharacters();
+
+            // 3. Setup Slots
             var slotManager = DependencyManager.Instance.Resolve<SlotManager>();
             if (slotManager != null) slotManager.GenerateSlots();
 
@@ -49,6 +53,10 @@ namespace ElevatorGame.Core
             var cameraController = DependencyManager.Instance.Resolve<CameraController>();
             if (cameraController != null) cameraController.SetupCamera();
             
+            // 4. Setup Elevators
+            var elevatorManager = DependencyManager.Instance.Resolve<ElevatorGame.Elevators.ElevatorManager>();
+            if (elevatorManager != null) elevatorManager.GenerateElevators();
+
             Debug.Log($"Level {testLevelData.name} successfully initialized by LevelController!");
         }
     }

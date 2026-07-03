@@ -12,9 +12,63 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 294abbb3f1e55bb489d382959b0d8908, type: 3}
   m_Name: TestingData
   m_EditorClassIdentifier: 
-  rows: 10
-  columns: 10
-  initialCharacters: []
-  elevatorSequence: []
+  rows: 5
+  columns: 3
+  initialCharacters:
+  - position: {x: 0, y: 0}
+    color: 2
+    moveDirection: 2
+  - position: {x: 1, y: 0}
+    color: 2
+    moveDirection: 2
+  - position: {x: 2, y: 0}
+    color: 0
+    moveDirection: 0
+  - position: {x: 0, y: 1}
+    color: 0
+    moveDirection: 1
+  - position: {x: 1, y: 1}
+    color: 1
+    moveDirection: 1
+  - position: {x: 2, y: 1}
+    color: 2
+    moveDirection: 2
+  - position: {x: 0, y: 2}
+    color: 2
+    moveDirection: 2
+  - position: {x: 1, y: 2}
+    color: 0
+    moveDirection: 0
+  - position: {x: 2, y: 2}
+    color: 1
+    moveDirection: 2
+  - position: {x: 0, y: 3}
+    color: 1
+    moveDirection: 2
+  - position: {x: 1, y: 3}
+    color: 1
+    moveDirection: 2
+  - position: {x: 2, y: 3}
+    color: 1
+    moveDirection: 0
+  - position: {x: 0, y: 4}
+    color: 0
+    moveDirection: 0
+  - position: {x: 1, y: 4}
+    color: 2
+    moveDirection: 2
+  - position: {x: 2, y: 4}
+    color: 0
+    moveDirection: 0
+  elevatorSequence:
+  - requiredColor: 1
+    requiredCapacity: 5
+    isLockedInitially: 0
+  - requiredColor: 2
+    requiredCapacity: 5
+    isLockedInitially: 0
+  - requiredColor: 0
+    requiredCapacity: 5
+    isLockedInitially: 0
   totalBufferSlots: 6
   initiallyLockedSlots: 2

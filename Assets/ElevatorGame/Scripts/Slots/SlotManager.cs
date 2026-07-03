@@ -13,6 +13,8 @@ namespace ElevatorGame.Slots
         [SerializeField] private BufferSlot slotPrefab;
         [SerializeField] private Transform slotsParent;
         [SerializeField] private float slotSpacing = 1.2f;
+        [Tooltip("Margin to keep from the grid edges")]
+        [SerializeField] private float marginFromGrid = 1.0f;
 
         private List<BufferSlot> _slots = new List<BufferSlot>();
 
@@ -43,7 +45,15 @@ namespace ElevatorGame.Slots
             int total = levelData.totalBufferSlots;
             int locked = levelData.initiallyLockedSlots;
 
-            // Center slots horizontally
+            var gridManager = DependencyManager.Instance.Resolve<ElevatorGame.Grid.GridManager>();
+            if (gridManager != null)
+            {
+                bool placeAboveGrid = slotsParent.position.z >= 0;
+                float targetZ = placeAboveGrid ? gridManager.GetGridTopZ() + marginFromGrid : gridManager.GetGridBottomZ() - marginFromGrid;
+                slotsParent.position = new Vector3(slotsParent.position.x, slotsParent.position.y, targetZ);
+            }
+
+            // Center slots horizontally (local to the parent)
             float totalWidth = (total - 1) * slotSpacing;
             Vector3 startPos = new Vector3(-totalWidth / 2f, 0, 0);
 
@@ -114,6 +124,19 @@ namespace ElevatorGame.Slots
                     break;
                 }
             }
+        }
+
+        public List<Character> GetCharactersInSlots()
+        {
+            List<Character> list = new List<Character>();
+            foreach (var slot in _slots)
+            {
+                if (slot.OccupyingCharacter != null)
+                {
+                    list.Add(slot.OccupyingCharacter);
+                }
+            }
+            return list;
         }
     }
 }

@@ -23,10 +23,31 @@ namespace ElevatorGame.Slots
         public void SetCharacter(Character character)
         {
             OccupyingCharacter = character;
-            
-            // Snap the character into the slot visually
-            character.transform.position = transform.position + Vector3.up * 0.5f;
             character.gameObject.SetActive(true);
+            character.HideArrow();
+            
+            character.StartCoroutine(MoveToSlotRoutine(character));
+        }
+
+        private System.Collections.IEnumerator MoveToSlotRoutine(Character character)
+        {
+            Vector3 targetPos = transform.position + Vector3.up * 0.35f;
+            Vector3 startPos = character.transform.position;
+            
+            float dist = Vector3.Distance(startPos, targetPos);
+            if (dist > 0.01f)
+            {
+                float duration = dist / 8f; // Consistent speed
+                float t = 0;
+                while (t < 1)
+                {
+                    t += Time.deltaTime / duration;
+                    character.transform.position = Vector3.Lerp(startPos, targetPos, t);
+                    yield return null;
+                }
+            }
+            
+            character.transform.position = targetPos;
         }
 
         public void ClearCharacter()

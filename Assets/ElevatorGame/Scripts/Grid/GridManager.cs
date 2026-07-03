@@ -80,28 +80,46 @@ namespace ElevatorGame.Grid
             return null;
         }
 
-        /// <summary>
-        /// Checks if a character can move in a given direction until they exit the board.
-        /// An exit is guaranteed if no obstacles or other characters block the path to the edge.
-        /// </summary>
+        public float GetGridTopZ()
+        {
+            if (_grid == null || _rows == 0) return 4f;
+            float step = cellSize + cellSpacing;
+            return (_rows - 1) * step / 2f; 
+        }
+        
+        public float GetGridBottomZ()
+        {
+            if (_grid == null || _rows == 0) return -4f;
+            float step = cellSize + cellSpacing;
+            return -(_rows - 1) * step / 2f;
+        }
+
         public bool IsPathClear(Vector2Int startPos, MoveDirection direction)
         {
-            Vector2Int currentPos = startPos;
-            Vector2Int dirVector = GetDirectionVector(direction);
-            
-            while (true)
+            List<Vector2Int> path = CalculatePath(startPos, direction);
+            foreach (var pos in path)
             {
-                currentPos += dirVector;
-                GridTile cell = GetCell(currentPos);
-                
-                // If we went out of bounds, the path is clear to the exit
-                if (cell == null)
-                    return true;
-                
-                // If there's another character, path is blocked
-                if (cell.IsOccupied)
+                GridTile cell = GetCell(pos);
+                if (cell != null && cell.IsOccupied)
                     return false;
             }
+            return true;
+        }
+
+        public List<Vector2Int> CalculatePath(Vector2Int startPos, MoveDirection dir)
+        {
+            List<Vector2Int> path = new List<Vector2Int>();
+            Vector2Int current = startPos;
+            Vector2Int dirVec = GetDirectionVector(dir);
+            
+            while(true)
+            {
+                current += dirVec;
+                if (current.x < 0 || current.x >= _columns || current.y < 0 || current.y >= _rows)
+                    break;
+                path.Add(current);
+            }
+            return path;
         }
 
         public Vector3 GetWorldPosition(Vector2Int gridPos)

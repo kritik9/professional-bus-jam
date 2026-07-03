@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using ElevatorGame.Core;
 using ElevatorGame.Grid;
@@ -15,6 +16,9 @@ namespace ElevatorGame.Characters
         [Header("Movement Settings")]
         [SerializeField] private float moveSpeed = 5f;
         
+        [Header("Arrow Settings")]
+        [SerializeField] private Transform arrowTransform;
+        
         private GridManager _gridManager;
         private bool _isMoving = false;
 
@@ -29,7 +33,7 @@ namespace ElevatorGame.Characters
             // Set initial position and register to cell
             if (_gridManager != null)
             {
-                transform.position = _gridManager.GetWorldPosition(startPos) + Vector3.up * 0.5f;
+                transform.position = _gridManager.GetWorldPosition(startPos) + Vector3.up * 0.35f;
                 GridTile cell = _gridManager.GetCell(startPos);
                 if (cell != null) cell.SetCharacter(this);
             }
@@ -38,7 +42,65 @@ namespace ElevatorGame.Characters
                 Debug.LogError("Character could not find GridManager via DependencyManager!");
             }
             
-            // Note: Visual updates (color/arrow) should be hooked up here or in a separate view component
+            // Visual updates (color/arrow)
+            ApplyColorToRenderers(color);
+            UpdateArrowRotation(dir);
+        }
+
+        private void ApplyColorToRenderers(CharacterColor colorType)
+        {
+            UnityEngine.Color unityColor = GetUnityColor(colorType);
+            Renderer[] renderers = GetComponentsInChildren<Renderer>();
+            foreach (var renderer in renderers)
+            {
+                if (renderer.material != null)
+                {
+                    renderer.material.color = unityColor;
+                }
+            }
+        }
+
+        private void UpdateArrowRotation(MoveDirection dir)
+        {
+            if (arrowTransform != null)
+            {
+                float zRot = dir switch
+                {
+                    MoveDirection.Up => 270f,
+                    MoveDirection.Right => 180f, 
+                    MoveDirection.Down => 90f,
+                    MoveDirection.Left => 0f,
+                    _ => 0f
+                };
+                
+                arrowTransform.localRotation = Quaternion.Euler(90, 0, zRot);
+            }
+        }
+
+        public void HideArrow()
+        {
+            if (arrowTransform != null)
+            {
+                arrowTransform.gameObject.SetActive(false);
+            }
+        }
+
+        private UnityEngine.Color GetUnityColor(CharacterColor characterColor)
+        {
+            switch (characterColor)
+            {
+                case CharacterColor.Red: return UnityEngine.Color.red;
+                case CharacterColor.Blue: return UnityEngine.Color.blue;
+                case CharacterColor.Green: return UnityEngine.Color.green;
+                case CharacterColor.Yellow: return UnityEngine.Color.yellow;
+                case CharacterColor.Purple: return new UnityEngine.Color(0.5f, 0, 0.5f);
+                case CharacterColor.Orange: return new UnityEngine.Color(1f, 0.64f, 0f);
+                case CharacterColor.Pink: return new UnityEngine.Color(1f, 0.75f, 0.8f);
+                case CharacterColor.Cyan: return UnityEngine.Color.cyan;
+                case CharacterColor.Gray: return UnityEngine.Color.gray;
+                case CharacterColor.White: return UnityEngine.Color.white;
+                default: return UnityEngine.Color.white;
+            }
         }
 
         // Call this when the player clicks/taps the character
@@ -61,46 +123,48 @@ namespace ElevatorGame.Characters
         {
             _isMoving = true;
             
-            // Clear current cell immediately so others can move through/into it if needed
             GridTile currentCell = _gridManager.GetCell(GridPosition);
             if (currentCell != null) currentCell.ClearCharacter();
             
-            Vector2Int dirVector = GridManager.GetDirectionVector(Direction);
-            Vector2Int currentLogicPos = GridPosition;
+            List<Vector2Int> path = _gridManager.CalculatePath(GridPosition, Direction);
             
-            while (true)
+            // Trace the exact clear grid path
+            foreach (var pos in path)
             {
-                currentLogicPos += dirVector;
-                GridTile nextCell = _gridManager.GetCell(currentLogicPos);
-                
-                Vector3 targetWorldPos;
-                if (nextCell == null)
+                GridTile nextCell = _gridManager.GetCell(pos);
+                if (nextCell != null)
                 {
-                    // Moving off the grid. Calculate a point slightly outside the board.
-                    targetWorldPos = transform.position + new Vector3(dirVector.x, 0, dirVector.y) * 1.5f; 
+                    Vector3 targetWorldPos = nextCell.transform.position + Vector3.up * 0.35f;
+                    while (Vector3.Distance(transform.position, targetWorldPos) > 0.01f)
+                    {
+                        transform.position = Vector3.MoveTowards(transform.position, targetWorldPos, moveSpeed * Time.deltaTime);
+                        yield return null;
+                    }
+                    transform.position = targetWorldPos;
                 }
-                else
-                {
-                    targetWorldPos = nextCell.transform.position + Vector3.up * 0.5f;
-                }
+            }
+            
+            // Final step out of the grid in their movement direction
+            Vector2Int dirVector = GridManager.GetDirectionVector(Direction);
+            Vector3 exitWorldPos = transform.position + new Vector3(dirVector.x, 0, dirVector.y) * 1.5f;
+            while (Vector3.Distance(transform.position, exitWorldPos) > 0.01f)
+            {
+                transform.position = Vector3.MoveTowards(transform.position, exitWorldPos, moveSpeed * Time.deltaTime);
+                yield return null;
+            }
 
-                // Move smoothly to the next position tile
-                while (Vector3.Distance(transform.position, targetWorldPos) > 0.01f)
-                {
-                    transform.position = Vector3.MoveTowards(transform.position, targetWorldPos, moveSpeed * Time.deltaTime);
-                    yield return null;
-                }
-                transform.position = targetWorldPos;
-
-                if (nextCell == null)
-                {
-                    // Character has successfully exited the grid!
-                    GameEvents.OnCharacterReachedExit?.Invoke(this);
-                    
-                    // Hide character and stop moving. The SlotManager will take over from here.
-                    gameObject.SetActive(false); 
-                    break;
-                }
+            // Character has successfully exited the grid!
+            var elevatorManager = DependencyManager.Instance.Resolve<ElevatorGame.Elevators.ElevatorManager>();
+            bool boarded = false;
+            if (elevatorManager != null)
+            {
+                boarded = elevatorManager.TryBoardCharacterDirectly(this);
+            }
+            
+            if (!boarded)
+            {
+                GameEvents.OnCharacterReachedExit?.Invoke(this);
+                // Do NOT disable the character, as the SlotManager takes over its movement and visibility!
             }
             
             _isMoving = false;
