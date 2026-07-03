@@ -32,7 +32,8 @@ public class Bus : MonoBehaviour
     [SerializeField] private float leaveHeight = 15f;
     [SerializeField] private float leaveSpeed = 4f;
 
-
+    private Coroutine doorRoutine;
+    private bool doorsOpen;
 
     public int boarded = 0;
 
@@ -136,10 +137,24 @@ public class Bus : MonoBehaviour
 
         boardingQueue.Enqueue(passenger);
 
+        // Open the doors immediately when the first passenger starts coming
+        if (!doorsOpen)
+        {
+            if (doorRoutine != null)
+                StopCoroutine(doorRoutine);
+
+            doorRoutine = StartCoroutine(OpenDoorsRoutine());
+        }
+
         if (!isProcessingBoarding)
             StartCoroutine(ProcessBoarding());
     }
-
+    private IEnumerator OpenDoorsRoutine()
+    {
+        doorsOpen = true;
+        yield return MoveDoors(true);
+        doorRoutine = null;
+    }
     public void ApplyColor()
     {
         Color appliedColor = GetColorFromEnum(color);
@@ -168,7 +183,7 @@ public class Bus : MonoBehaviour
     {
         isProcessingBoarding = true;
 
-        yield return StartCoroutine(MoveDoors(true));
+        //yield return StartCoroutine(MoveDoors(true));
 
         List<PassengerController> waitingPassengers = new();
         List<PassengerController> gridPassengers = new();
@@ -264,6 +279,8 @@ public class Bus : MonoBehaviour
 
         leaving = true;
 
+        //yield return StartCoroutine(MoveDoors(false));
+        doorsOpen = false;
         yield return StartCoroutine(MoveDoors(false));
 
         Leave();
