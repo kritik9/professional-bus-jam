@@ -14,7 +14,7 @@ public class GameManager : MonoBehaviour
 
     private int _currentLevelIndex;
     public int CurrentLevelIndex => _currentLevelIndex;
-     
+
     [Header("Managers")]
     [SerializeField] public LevelManager _levelManager;
     [SerializeField] public BusSpawner _busSpawner;
@@ -24,13 +24,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] public GridGenerator _grid;
     [SerializeField] public PassengerSpawner _passengerSpawner;
     [SerializeField] public WaitingAreaController _waitingArea;
-     
-
-     
-    public Bus CurrentBus { get; set; }
 
     private Coroutine _autoBoardCoroutine;
-      
+
     private void Awake()
     {
         if (Instance == null)
@@ -43,8 +39,6 @@ public class GameManager : MonoBehaviour
     {
         _currentLevelIndex = PlayerPrefs.GetInt("LEVEL", 0);
     }
-     
-
 
     #region State Management
 
@@ -110,7 +104,6 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
-
     #region Level Flow
 
     private void StartLevel()
@@ -159,7 +152,6 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
-
     #region Passenger Handling
 
     public bool CanMovePassenger(PassengerController passenger)
@@ -178,9 +170,6 @@ public class GameManager : MonoBehaviour
         if (!_grid.IsPathClear(passenger.currentCell, passenger.arrowDirection))
             return;
 
-        if (CurrentBus == null)
-            return;
-
         passenger.MoveAlongPath(() =>
         {
             HandlePassengerArrival(passenger);
@@ -189,9 +178,11 @@ public class GameManager : MonoBehaviour
 
     private void HandlePassengerArrival(PassengerController passenger)
     {
-        if (passenger.color == CurrentBus.color && CurrentBus.HasSpace())
+        Bus matchingBus = _busSpawner.GetBus(passenger.color);
+
+        if (matchingBus != null && matchingBus.HasSpace())
         {
-            CurrentBus.Board(passenger);
+            matchingBus.Board(passenger);
             return;
         }
 
@@ -200,10 +191,9 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
+    #region Waiting Area
 
-    #region Waiting Logic
-
-    public  void MoveToWaitingArea(PassengerController passenger)
+    public void MoveToWaitingArea(PassengerController passenger)
     {
         if (_waitingArea.HasSpace() && _waitingArea.OccupiedCount < _maxWaiting - 1)
         {
@@ -214,6 +204,8 @@ public class GameManager : MonoBehaviour
             }
 
             _waitingArea.AddPassenger(passenger);
+
+            AutoBoardWaitingPassengers();
         }
         else
         {
@@ -223,9 +215,6 @@ public class GameManager : MonoBehaviour
 
     public void AutoBoardWaitingPassengers()
     {
-        if (CurrentBus == null)
-            return;
-
         if (_autoBoardCoroutine != null)
             StopCoroutine(_autoBoardCoroutine);
 
@@ -234,27 +223,45 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator AutoBoardCoroutine()
     {
-        while (CurrentBus != null)
+        bool boardedSomeone;
+
+        do
         {
-            List<PassengerController> matches =
-                _waitingArea.GetMatchingPassengers(CurrentBus.color);
+            boardedSomeone = false;
 
-            if (matches.Count == 0 || !CurrentBus.HasSpace())
-                break;
+            foreach (PassengerColor color in System.Enum.GetValues(typeof(PassengerColor)))
+            {
+                Bus bus = _busSpawner.GetBus(color);
 
-            CurrentBus.Board(matches[0]);
-            yield return new WaitForSeconds(0.05f);
-        }
+                if (bus == null || !bus.HasSpace())
+                    continue;
+
+                List<PassengerController> passengers =
+                    _waitingArea.GetMatchingPassengers(color);
+
+                if (passengers.Count > 0)
+                {
+                    bus.Board(passengers[0]);
+                    boardedSomeone = true;
+                    yield return new WaitForSeconds(0.05f);
+                }
+            }
+
+        } while (boardedSomeone);
 
         _autoBoardCoroutine = null;
     }
 
     #endregion
 
-     
+    #region Bus Events
 
-    public void OnBusLeft()
+    public void OnBusLeft(Bus bus)
     {
+        _busSpawner.BusLeft(bus);
+
+        AutoBoardWaitingPassengers();
+
         if (AllPassengersFinished())
         {
             SetState(GameState.Win);
@@ -263,10 +270,10 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        _busSpawner.MoveNextBusToStop();
-
         if (_busSpawner.RemainingBusCount == 0)
+        {
             SetState(GameState.Lose);
+        }
     }
 
     private bool AllPassengersFinished()
@@ -279,13 +286,15 @@ public class GameManager : MonoBehaviour
 
         return true;
     }
-     
 
+    #endregion
 
-    #region UI Button Hooks
+    #region UI
 
     public void OnPlayButtonClicked() => SetState(GameState.LevelSelect);
+
     public void OnLevelStartButtonClicked() => SetState(GameState.Playing);
+
     public void OnMainMenuButtonClicked() => SetState(GameState.Menu);
 
     public void OnBackButtonClicked()
@@ -296,272 +305,8 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
-     
-
     private void CheckLoseCondition()
     {
         SetState(GameState.Lose);
     }
-     
 }
-
-
-
-//using System.Collections;
-//using System.Collections.Generic;
-//using UnityEngine;
-//using UnityEngine.UIElements;
-//using static GameEnums;
-//using static UnityEngine.Rendering.DebugUI.Table;
-
-//public class GameManager : MonoBehaviour
-//{
-
-//    public static GameManager Instance;
-//    public GameState CurrentState { get; private set; }
-
-//    [Header("Manager")]
-//    [SerializeField] private LevelManager levelManager;
-
-//    [SerializeField] public GridGenerator passengerGrid;
-
-
-//    public PassengerSpawner PassengerSpawner;
-//    public Bus currentBus;
-//    [SerializeField] private BusSpawner BusSpawner;
-
-//    [SerializeField] private Transform waitingParent; 
-
-//    [SerializeField] public int maxWaiting = 6;
-//    [HideInInspector]
-//    public int currentLevelIndex;
-
-
-//    [SerializeField] public WaitingAreaController waitingSlot;
-//    [SerializeField] private UiManager uiManager;
-
-//    private Coroutine autoBoardCoroutine;  
-
-//    private void Awake()
-//    {
-//        Instance = this;
-//    }
-
-//    private void Start()
-//    {
-//        currentLevelIndex = PlayerPrefs.GetInt("LEVEL", 0);
-//    }
-
-//    public void NextLevelWithButton()
-//    {
-//        NextLevel();
-//    }
-//    public void SetState(GameState newState)
-//    {
-//        CurrentState = newState;
-//        switch (newState)
-//        {
-//            case GameState.Menu:
-//                Time.timeScale = 0f;
-//                uiManager.ShowMenu();
-//                break;
-//            case GameState.LevelSelect:
-//                Time.timeScale = 0f;
-//                uiManager.ShowLevelSelect();
-//                uiManager.UpdateLevelText(currentLevelIndex + 1);
-//                break;
-//            case GameState.Playing:
-//                Time.timeScale = 1f;
-//                uiManager.HideAllPanels();
-//                StartLevel();
-//                break;
-//            case GameState.Win:
-//                Time.timeScale = 0f;
-//                uiManager.ShowWinPanel();
-//                break;
-//            case GameState.Lose:
-//                Time.timeScale = 0f;
-//                uiManager.ShowLosePanel();
-//                break;
-//        }
-//    }
-//    public void StartLevel()
-//    {
-//        CurrentState = GameState.Playing;
-//        levelManager.LoadLevel(currentLevelIndex);
-//        uiManager.UpdateLevelText(currentLevelIndex + 1);
-//    }
-
-//    public void TryMovePassenger(PassengerController p)
-//    {
-//        if (CurrentState != GameState.Playing)
-//            return; 
-//        if (!passengerGrid.IsPathClear(p.currentCell, p.arrowDirection))
-//        {
-//            Debug.Log("Path blocked");
-//            return;
-//        } 
-//        if (currentBus == null)
-//        {
-//            Debug.Log("No active bus");
-//            return;
-//        } 
-//        p.MoveAlongPath(() =>
-//        {
-//            if (p.color == currentBus.color)
-//            {
-//                if (currentBus.HasSpace())
-//                {
-//                    currentBus.Board(p);
-//                    return;
-//                } 
-//            } 
-//            MoveToWaitingArea(p);
-//        });
-//    }
-//    public void MoveToWaitingArea(PassengerController p)
-//    { 
-//        Debug.Log("OccupiedCount: " + waitingSlot.OccupiedCount + ", HasSpace: " + waitingSlot.HasSpace());
-//        if (waitingSlot.HasSpace() && waitingSlot.OccupiedCount < maxWaiting - 1)
-//        { 
-//            if (p.currentCell != null)
-//            {
-//                p.currentCell.CurrentPassanger = null;
-//                p.currentCell = null;
-//            }
-//            waitingSlot.AddPassenger(p);
-//        }
-//        else
-//        {
-//            Debug.Log("Game over condition");
-//            CheckLoseCondition();
-//        }
-//    }
-
-//    public void AutoBoardWaitingPassengers()
-//    {
-//        if (currentBus == null)
-//            return;
-//        if (autoBoardCoroutine != null)
-//            StopCoroutine(autoBoardCoroutine);  
-//        autoBoardCoroutine = StartCoroutine(AutoBoardCoroutine());
-//    }
-//    IEnumerator AutoBoardCoroutine()
-//    {
-//        while (true)
-//        {
-//            if (currentBus == null)  
-//                break;
-//            List<PassengerController> toBoard = waitingSlot.GetMatchingPassengers(currentBus.color);
-//            if (toBoard.Count == 0 || !currentBus.HasSpace())
-//                break;
-//            PassengerController p = toBoard[0];
-//            currentBus.Board(p);
-//            yield return new WaitForSeconds(0.05f);
-//        }
-//        autoBoardCoroutine = null;  
-//    }
-//    void SaveProgress()
-//    {
-//        PlayerPrefs.SetInt("LEVEL", currentLevelIndex);
-//    }
-
-//    public void RestartLevel()
-//    {
-//        levelManager.ClearLevel();
-//        SetState(GameState.Playing); 
-//    } 
-//    public void NextLevel()
-//    {
-//        currentLevelIndex++;
-//        PlayerPrefs.SetInt("LEVEL", currentLevelIndex);
-
-//        if (currentLevelIndex >= levelManager.levelDatabase.levels.Count)
-//        {
-//            Debug.Log("ALL LEVELS COMPLETE");
-//            uiManager.ShowAllLevelCompleted();
-//            currentLevelIndex = levelManager.levelDatabase.levels.Count - 1;
-//            return;
-//        }
-//        SetState(GameState.Playing);
-//    }
-//    public bool CanMovePassenger(PassengerController p)
-//    {
-//        if (p.currentCell == null || p.isMoving)
-//            return false;
-
-//        return passengerGrid.IsPathClear(p.currentCell, p.arrowDirection);
-//    }
-
-//    void CheckLoseCondition()
-//    {
-//        Debug.Log("GAME OVER");
-//        SetState(GameState.Lose);
-//    }
-
-//    public void OnBusLeft()
-//    {
-//        if (AllPassengersFinished())
-//        {
-//            SetState(GameState.Win);
-//            LevelProgressManager.Instance.CompleteLevel(currentLevelIndex);
-//            SaveProgress();
-//            return;
-//        }
-//        BusSpawner.MoveNextBusToStop();
-//        if (BusSpawner.RemainingBusCount == 0)
-//        {
-//            SetState(GameState.Lose);
-//            return;
-//        } 
-//    }
-
-//    public void LoadSpecificLevel(int levelIndex)
-//    {
-//        if (!LevelProgressManager.Instance.IsLevelUnlocked(levelIndex))
-//        {
-//            Debug.Log("Level is locked!");
-//            return;
-//        }
-//        if (levelIndex < 0 || levelIndex >= levelManager.levelDatabase.levels.Count)
-//        {
-//            Debug.LogError("Invalid level index: " + levelIndex + ". Max levels: " + levelManager.levelDatabase.levels.Count);
-//            levelIndex = Mathf.Clamp(levelIndex, 0, levelManager.levelDatabase.levels.Count - 1);
-//        } 
-//        currentLevelIndex = levelIndex;
-//        Debug.Log("Loading specific level: " + (currentLevelIndex + 1));
-//        SetState(GameState.Playing);
-//    }
-//    bool AllPassengersFinished()
-//    {
-//        foreach (var kvp in PassengerSpawner.colorCounts)
-//        {
-//            if (kvp.Value > 0)
-//                return false;
-//        }
-//        return true;
-//    }
-
-//    public void OnPlayButtonClicked()
-//    {
-//        SetState(GameState.LevelSelect);
-//    }
-
-//    public void OnLevelStartButtonClicked()
-//    {
-//        SetState(GameState.Playing);
-//    }
-
-//    public void OnMainMenuButtonClicked()
-//    {
-//        SetState(GameState.Menu);
-//    }
-//    public void OnBackButtonClicked()
-//    {
-//        if (CurrentState == GameState.Playing)
-//        {
-//            SetState(GameState.Menu);
-
-//        }
-//    }
-//}

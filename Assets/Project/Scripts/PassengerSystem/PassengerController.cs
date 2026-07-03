@@ -142,7 +142,7 @@ public class PassengerController : MonoBehaviour
                 (cell.IsOccupied && !cell.CurrentPassanger.isMoving))
                 break;
 
-            waypoints.Add(cell.transform.position + Vector3.up * 0.5f);
+            waypoints.Add(cell.transform.position + Vector3.up * 0f);
         }
 
         return waypoints;
@@ -298,7 +298,7 @@ public class PassengerController : MonoBehaviour
         currentCell = cell;
         cell.CurrentPassanger = this;
 
-        transform.position = cell.transform.position + Vector3.up * 0.5f;
+        transform.position = cell.transform.position + Vector3.up * 0f;
     }
      
     public void ApplyColor()

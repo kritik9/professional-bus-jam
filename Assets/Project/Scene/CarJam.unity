@@ -3681,8 +3681,7 @@ MonoBehaviour:
   busPrefab: {fileID: 1840712211201642241, guid: c63899a0d7c8926488d7803aa4901e3a, type: 3}
   BusStopTransform: {fileID: 2061803061}
   passengerSpawner: {fileID: 170205462}
-  elevatorSpawnOffset: 12
-  elevatorExitHeight: 15
+  elevatorSpacing: 4
   elevatorMoveSpeed: 4
 --- !u!1 &948040924
 GameObject:
