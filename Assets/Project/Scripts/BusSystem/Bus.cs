@@ -5,7 +5,7 @@ using TMPro;
 using static GameEnums;
 
 public class Bus : MonoBehaviour
-{ 
+{
     [Header("Bus Settings")]
     public PassengerColor color;
     public int capacity = 3;
@@ -16,16 +16,38 @@ public class Bus : MonoBehaviour
     [Header("Visuals")]
     public GameObject busModelBody;
 
-    [Header("Movement")]
-    public float BusmoveSpeed = 5f;
-     
-
     public int boarded = 0;
 
     private readonly Queue<PassengerController> boardingQueue = new();
     private bool isProcessingBoarding = false;
-     
 
+    [Header("Elevator Doors")]
+    [SerializeField] private Transform leftDoor;
+    [SerializeField] private Transform rightDoor;
+
+    [SerializeField] private float doorOpenDistance = 0.6f;
+    [SerializeField] private float doorSpeed = 2f;
+
+    private Vector3 leftClosedPos;
+    private Vector3 rightClosedPos;
+
+    private Vector3 leftOpenPos;
+    private Vector3 rightOpenPos;
+
+    private void Awake()
+    {
+        if (leftDoor != null)
+        {
+            leftClosedPos = leftDoor.localPosition;
+            leftOpenPos = leftClosedPos + Vector3.left * doorOpenDistance;
+        }
+
+        if (rightDoor != null)
+        {
+            rightClosedPos = rightDoor.localPosition;
+            rightOpenPos = rightClosedPos + Vector3.right * doorOpenDistance;
+        }
+    }
     public bool HasSpace()
     {
         return boarded < capacity;
@@ -37,7 +59,34 @@ public class Bus : MonoBehaviour
         boarded = 0;
         UpdateUI();
     }
+    private IEnumerator MoveDoors(bool open)
+    {
+        if (leftDoor == null || rightDoor == null)
+            yield break;
 
+        Vector3 targetLeft = open ? leftOpenPos : leftClosedPos;
+        Vector3 targetRight = open ? rightOpenPos : rightClosedPos;
+
+        while (
+            Vector3.Distance(leftDoor.localPosition, targetLeft) > 0.01f ||
+            Vector3.Distance(rightDoor.localPosition, targetRight) > 0.01f)
+        {
+            leftDoor.localPosition = Vector3.MoveTowards(
+                leftDoor.localPosition,
+                targetLeft,
+                doorSpeed * Time.deltaTime);
+
+            rightDoor.localPosition = Vector3.MoveTowards(
+                rightDoor.localPosition,
+                targetRight,
+                doorSpeed * Time.deltaTime);
+
+            yield return null;
+        }
+
+        leftDoor.localPosition = targetLeft;
+        rightDoor.localPosition = targetRight;
+    }
     public void Board(PassengerController passenger)
     {
         if (passenger == null)
@@ -52,18 +101,14 @@ public class Bus : MonoBehaviour
     public void ApplyColor()
     {
         Renderer renderer = GetComponent<Renderer>();
-        if (renderer == null)
-            return;
 
-        Color appliedColor = GetColorFromEnum(color);
-        renderer.material.color = appliedColor;
+        if (renderer != null)
+            renderer.material.color = GetColorFromEnum(color);
 
         if (busModelBody != null)
         {
             foreach (Renderer part in busModelBody.GetComponentsInChildren<Renderer>())
-            {
-                part.material.color = appliedColor;
-            }
+                part.material.color = GetColorFromEnum(color);
         }
 
         UpdateUI();
@@ -74,24 +119,12 @@ public class Bus : MonoBehaviour
         if (RemainingPassanger == null)
             return;
 
-        int remaining = capacity - boarded;
-        RemainingPassanger.text = remaining.ToString();
+        RemainingPassanger.text = (capacity - boarded).ToString();
     }
-
-    public void Leave()
-    {
-        Vector3 exitPos = transform.position + transform.right * 10f;
-        StartCoroutine(ExitRoutine(exitPos));
-    }
-
-    public void Enter(Vector3 targetPos)
-    {
-        StartCoroutine(EnterRoutine(targetPos));
-    }
-     
 
     private IEnumerator ProcessBoarding()
     {
+        yield return StartCoroutine(MoveDoors(true));
         isProcessingBoarding = true;
 
         List<PassengerController> waitingPassengers = new();
@@ -99,19 +132,20 @@ public class Bus : MonoBehaviour
 
         while (boardingQueue.Count > 0)
         {
-            PassengerController p = boardingQueue.Dequeue();
+            PassengerController passenger = boardingQueue.Dequeue();
 
-            if (p.isInWaiting)
-                waitingPassengers.Add(p);
+            if (passenger.isInWaiting)
+                waitingPassengers.Add(passenger);
             else
-                gridPassengers.Add(p);
-        } 
-        foreach (var passenger in waitingPassengers)
+                gridPassengers.Add(passenger);
+        }
+
+        foreach (PassengerController passenger in waitingPassengers)
         {
             if (boarded >= capacity)
                 break;
 
-            Vector3 boardingPos = transform.position + transform.right * 1f;
+            Vector3 boardingPos = transform.position + transform.right;
 
             passenger.MoveToPosition(boardingPos, () =>
             {
@@ -120,18 +154,20 @@ public class Bus : MonoBehaviour
                 GameManager.Instance._waitingArea.RemovePassenger(passenger);
 
                 if (boarded >= capacity)
-                    Leave();
+                {
+                    StartCoroutine(FinishBoarding());
+                }
             });
 
             yield return null;
         }
-         
-        foreach (var passenger in gridPassengers)
+
+        foreach (PassengerController passenger in gridPassengers)
         {
             if (boarded >= capacity)
                 break;
 
-            Vector3 boardingPos = transform.position + transform.right * 1f;
+            Vector3 boardingPos = transform.position + transform.right;
 
             passenger.MoveToPosition(boardingPos, () =>
             {
@@ -144,14 +180,18 @@ public class Bus : MonoBehaviour
                 HandlePassengerBoarding(passenger);
 
                 if (boarded >= capacity)
-                    Leave();
+                {
+                    StartCoroutine(FinishBoarding());
+                }
             });
 
             yield return null;
         }
 
         if (boarded >= capacity)
-            Leave();
+        {
+            StartCoroutine(FinishBoarding());
+        }
 
         isProcessingBoarding = false;
     }
@@ -176,44 +216,20 @@ public class Bus : MonoBehaviour
 
         passenger.gameObject.SetActive(false);
     }
-     
+    private bool leaving = false;
 
-    private IEnumerator ExitRoutine(Vector3 exitPos)
+    private IEnumerator FinishBoarding()
     {
+        if (leaving)
+            yield break;
+
+        leaving = true;
+
+        yield return StartCoroutine(MoveDoors(false));
+
         GameManager.Instance.CurrentBus = null;
         GameManager.Instance.OnBusLeft();
-
-        while (Vector3.Distance(transform.position, exitPos) > 0.1f)
-        {
-            transform.position = Vector3.MoveTowards(
-                transform.position,
-                exitPos,
-                Time.deltaTime * BusmoveSpeed
-            );
-            yield return null;
-        }
-
-        Destroy(gameObject);
     }
-
-    private IEnumerator EnterRoutine(Vector3 targetPos)
-    {
-        while (Vector3.Distance(transform.position, targetPos) > 0.1f)
-        {
-            transform.position = Vector3.MoveTowards(
-                transform.position,
-                targetPos,
-                Time.deltaTime * BusmoveSpeed
-            );
-            yield return null;
-        }
-
-        transform.position = targetPos;
-
-        GameManager.Instance.CurrentBus = this;
-        GameManager.Instance.AutoBoardWaitingPassengers();
-    }
-     
     private Color GetColorFromEnum(PassengerColor passengerColor)
     {
         switch (passengerColor)
@@ -231,5 +247,4 @@ public class Bus : MonoBehaviour
             default: return Color.white;
         }
     }
-     
 }

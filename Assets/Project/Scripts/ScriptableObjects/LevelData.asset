@@ -13,13 +13,43 @@ MonoBehaviour:
   m_Name: LevelData
   m_EditorClassIdentifier: 
   levels:
-  - carCount: 3
+  - gridRows: 3
+    gridCols: 3
     carCapacity: 3
-  - carCount: 3
+    colorCount: 2
+    busOrder: 000000000100000002000000
+    passengerColors: 000000000100000002000000
+    passengerDirections: 00000000
+    difficulty: 0
+  - gridRows: 3
+    gridCols: 3
     carCapacity: 3
-  - carCount: 4
+    colorCount: 2
+    busOrder: 
+    passengerColors: 
+    passengerDirections: 
+    difficulty: 0
+  - gridRows: 3
+    gridCols: 3
     carCapacity: 3
-  - carCount: 4
+    colorCount: 2
+    busOrder: 
+    passengerColors: 
+    passengerDirections: 
+    difficulty: 0
+  - gridRows: 3
+    gridCols: 3
     carCapacity: 3
-  - carCount: 6
+    colorCount: 2
+    busOrder: 
+    passengerColors: 
+    passengerDirections: 
+    difficulty: 0
+  - gridRows: 3
+    gridCols: 3
     carCapacity: 3
+    colorCount: 2
+    busOrder: 
+    passengerColors: 
+    passengerDirections: 
+    difficulty: 0

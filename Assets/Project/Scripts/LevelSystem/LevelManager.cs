@@ -30,29 +30,27 @@ public class LevelManager : MonoBehaviour
         if (data.passengerColors.Count != expectedSize || data.passengerDirections.Count != expectedSize)
         {
             Debug.LogError($"Level data mismatch at index {index}: Expected {expectedSize} items, but passengerColors has {data.passengerColors.Count} and passengerDirections has {data.passengerDirections.Count}. Skipping level load.");
-            return;  
+            return;
         }
 
         List<PassengerColor> rotatedColors = RotateGridClockwise(data.passengerColors, data.gridRows, data.gridCols);
         List<Direction> rotatedDirections = RotateGridClockwise(data.passengerDirections, data.gridRows, data.gridCols);
-         
+
         int newGridRows = data.gridCols;
         int newGridCols = data.gridRows;
 
         grid.SetGridSize(newGridRows + 2, newGridCols + 2);
         grid.GenerateGrid();
 
-        int totalCharacters = data.gridRows * data.gridCols;  
+        int totalCharacters = data.gridRows * data.gridCols;
 
         int carCount = Mathf.CeilToInt((float)totalCharacters / data.carCapacity);
 
         BusSpawner.SetupBuses(carCount, data.carCapacity, data.busOrder);
-         
+
         PassengerSpawner.SpawnPassengers(rotatedColors, rotatedDirections, newGridRows, newGridCols);
 
         Debug.Log($"Total Characters: {totalCharacters}");
-
-        BusSpawner.SpawnBus();
     }
 
     // Function to rotate a list representing a grid 90 degrees clockwise

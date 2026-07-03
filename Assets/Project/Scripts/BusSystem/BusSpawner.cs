@@ -4,54 +4,44 @@ using UnityEngine;
 using static GameEnums;
 
 public class BusSpawner : MonoBehaviour
-{ 
-
+{
     [Header("Prefabs")]
     [SerializeField] private GameObject busPrefab;
 
     [Header("Scene References")]
-    [SerializeField] private Transform spawnPoint;
     [SerializeField] private Transform BusStopTransform;
-    [SerializeField] private GameObject RoadTransform;
     [SerializeField] private PassengerSpawner passengerSpawner;
 
-    [Header("Movement Settings")]
-    [SerializeField] private float busSpacing = 5f;
-    [SerializeField] private float BusMovingSpeed = 4f;
-     
+    [Header("Elevator Settings")]
+    [SerializeField] private float elevatorSpawnOffset = 12f;
+    [SerializeField] private float elevatorExitHeight = 15f;
+    [SerializeField] private float elevatorMoveSpeed = 4f;
 
     private readonly List<Bus> activeBuses = new();
-    private readonly Queue<PassengerColor> busQueue = new();
 
     private int currentBusIndex = 0;
     private int currentBusCapacity = 0;
 
-    public int RemainingBusCount => activeBuses.Count - currentBusIndex;
-     
-
-    private void Start()
-    {
-        GetCameraWorldSize(); // Keeping original behaviour
-    }
-     
+    public int RemainingBusCount => Mathf.Max(0, activeBuses.Count - currentBusIndex);
 
     public void SetupBuses(int carCount, int carCapacity, List<PassengerColor> busOrder)
     {
         ClearCars();
 
         currentBusCapacity = carCapacity;
-        activeBuses.Clear();
         currentBusIndex = 0;
+        activeBuses.Clear();
 
-        Vector3 busStopPos = new Vector3(0f, 0f, BusStopTransform.position.z);
+        Vector3 stopPos = BusStopTransform.position;
 
         for (int i = 0; i < carCount; i++)
         {
             Vector3 spawnPos = (i == 0)
-                ? busStopPos
-                : busStopPos + new Vector3(i * -busSpacing, 0f, 0f);
+                ? stopPos
+                : stopPos + Vector3.down * elevatorSpawnOffset;
 
             GameObject obj = Instantiate(busPrefab, spawnPos, Quaternion.identity);
+
             Bus bus = obj.GetComponent<Bus>();
 
             bus.color = busOrder[i];
@@ -61,101 +51,91 @@ public class BusSpawner : MonoBehaviour
             activeBuses.Add(bus);
 
             if (i == 0)
-            {
                 GameManager.Instance.CurrentBus = bus;
-            }
         }
 
-        Debug.Log($"Spawned {activeBuses.Count} buses in order: {string.Join(", ", busOrder)}");
+        Debug.Log($"Spawned {activeBuses.Count} elevators.");
     }
 
     public void MoveNextBusToStop()
     {
+        if (currentBusIndex >= activeBuses.Count)
+            return;
+
+        Bus current = activeBuses[currentBusIndex];
+
+        Vector3 exitPos = current.transform.position + Vector3.up * elevatorExitHeight;
+
+        // Current elevator leaves
+        StartCoroutine(MoveElevator(current, exitPos, true));
+
+        // Next elevator arrives
         if (currentBusIndex + 1 < activeBuses.Count)
         {
             currentBusIndex++;
 
-            Bus nextBus = activeBuses[currentBusIndex];
-            Vector3 stopPos = new Vector3(0f, 0f, BusStopTransform.position.z);
+            Bus next = activeBuses[currentBusIndex];
 
-            nextBus.Enter(stopPos);
-            GameManager.Instance.CurrentBus = nextBus;
+            Vector3 stopPos = BusStopTransform.position;
 
-            for (int i = currentBusIndex + 1; i < activeBuses.Count; i++)
-            {
-                Bus bus = activeBuses[i];
-                Vector3 newPos = bus.transform.position + new Vector3(busSpacing, 0f, 0f);
-                StartCoroutine(MoveBusSmoothly(bus, newPos));
-            }
+            next.transform.position = stopPos + Vector3.down * elevatorSpawnOffset;
+
+            StartCoroutine(BringElevator(next, stopPos));
         }
         else
         {
-            Debug.Log("No more buses to move.");
+            GameManager.Instance.CurrentBus = null;
+            Debug.Log("No more elevators.");
         }
     }
 
-    public void SpawnBus()
+    private IEnumerator BringElevator(Bus elevator, Vector3 stopPos)
     {
-        if (busQueue.Count == 0)
-            return;
+        yield return MoveElevator(elevator, stopPos);
 
-        Vector2 camSize = GetCameraWorldSize();
-        float leftEdge = -camSize.x / 2f;
+        if (elevator != null)
+        {
+            GameManager.Instance.CurrentBus = elevator;
+            GameManager.Instance.AutoBoardWaitingPassengers();
+        }
+    }
 
-        Vector3 targetPosition = new Vector3(0f, 0f, BusStopTransform.position.z);
-        Vector3 startPosition = new Vector3(leftEdge - 3f, 0f, BusStopTransform.position.z);
+    private IEnumerator MoveElevator(Bus elevator, Vector3 target, bool destroyOnFinish = false)
+    {
+        if (elevator == null)
+            yield break;
 
-        PassengerColor color = busQueue.Dequeue();
+        while (elevator != null &&
+               Vector3.Distance(elevator.transform.position, target) > 0.01f)
+        {
+            elevator.transform.position = Vector3.MoveTowards(
+                elevator.transform.position,
+                target,
+                elevatorMoveSpeed * Time.deltaTime);
 
-        GameObject obj = Instantiate(busPrefab, startPosition, Quaternion.identity);
-        Bus bus = obj.GetComponent<Bus>();
+            yield return null;
+        }
 
-        bus.color = color;
-        bus.SetCapacity(currentBusCapacity);
-        bus.ApplyColor();
+        if (elevator == null)
+            yield break;
 
-        bus.Enter(targetPosition);
+        elevator.transform.position = target;
+
+        if (destroyOnFinish)
+        {
+            activeBuses.Remove(elevator);
+            Destroy(elevator.gameObject);
+        }
     }
 
     public void ClearCars()
     {
         GameObject[] buses = GameObject.FindGameObjectsWithTag("Bus");
 
-        Debug.Log("Found " + buses.Length + " buses to clear.");
-
-        foreach (var bus in buses)
-        {
+        foreach (GameObject bus in buses)
             Destroy(bus);
-            Debug.Log("Destroyed bus: " + bus.name);
-        }
 
-        busQueue.Clear();
-        Debug.Log("All buses cleared and queue reset.");
+        activeBuses.Clear();
+        currentBusIndex = 0;
     }
-     
-
-    private IEnumerator MoveBusSmoothly(Bus bus, Vector3 targetPos)
-    {
-        while (Vector3.Distance(bus.transform.position, targetPos) > 0.01f)
-        {
-            bus.transform.position = Vector3.MoveTowards(
-                bus.transform.position,
-                targetPos,
-                BusMovingSpeed * Time.deltaTime);
-
-            yield return null;
-        }
-
-        bus.transform.position = targetPos;
-        Debug.Log("Bus shifted to: " + targetPos);
-    }
-
-    private Vector2 GetCameraWorldSize()
-    {
-        Camera cam = Camera.main;
-        float height = cam.orthographicSize * 2f;
-        float width = height * cam.aspect;
-        return new Vector2(width, height);
-    }
-     
 }
