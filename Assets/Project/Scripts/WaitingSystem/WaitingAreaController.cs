@@ -145,7 +145,7 @@ public class WaitingAreaController : MonoBehaviour
         WaitingSlotCell cell)
     {
         Vector3 targetPosition =
-            cell.transform.position + Vector3.up * 0.5f;
+            cell.transform.position + Vector3.up * 0f;
 
         passenger.MoveToPosition(targetPosition, () =>
         {

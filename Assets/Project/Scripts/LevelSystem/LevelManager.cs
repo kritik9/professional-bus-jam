@@ -46,7 +46,8 @@ public class LevelManager : MonoBehaviour
 
         int carCount = Mathf.CeilToInt((float)totalCharacters / data.carCapacity);
 
-        BusSpawner.SetupBuses(carCount, data.carCapacity, data.busOrder);
+        //BusSpawner.SetupBuses(carCount, data.carCapacity, data.busOrder);
+        BusSpawner.SetupBuses(data.carCapacity, data.busOrder);
 
         PassengerSpawner.SpawnPassengers(rotatedColors, rotatedDirections, newGridRows, newGridCols);
 

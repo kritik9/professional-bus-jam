@@ -204,8 +204,8 @@ public class GameManager : MonoBehaviour
             }
 
             _waitingArea.AddPassenger(passenger);
-
-            AutoBoardWaitingPassengers();
+            passenger.SetWaiting(true);
+            AutoBoardWaitingPassengers(passenger);
         }
         else
         {
@@ -213,6 +213,14 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public void AutoBoardWaitingPassengers(PassengerController passenger)
+    {
+        if (_autoBoardCoroutine != null)
+            StopCoroutine(_autoBoardCoroutine);
+
+        passenger.SetWaiting(false);
+        _autoBoardCoroutine = StartCoroutine(AutoBoardCoroutine());
+    }
     public void AutoBoardWaitingPassengers()
     {
         if (_autoBoardCoroutine != null)

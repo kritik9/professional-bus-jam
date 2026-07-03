@@ -127,11 +127,14 @@ MonoBehaviour:
   capacity: 3
   RemainingPassanger: {fileID: 8459831998674028698}
   busModelBody: {fileID: 2090259223582916914}
-  boarded: 0
+  boardingPoint: {fileID: 0}
   leftDoor: {fileID: 2090259223582825752}
   rightDoor: {fileID: 2090259223582825750}
   doorOpenDistance: 0.6
   doorSpeed: 2
+  leaveHeight: 15
+  leaveSpeed: 4
+  boarded: 0
 --- !u!1 &4505807799670308181
 GameObject:
   m_ObjectHideFlags: 0
@@ -190,17 +193,17 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4745715121298146937}
-  m_LocalRotation: {x: 0.65089756, y: -0, z: -0, w: 0.75916564}
-  m_LocalPosition: {x: 0, y: 0, z: -0.271}
-  m_LocalScale: {x: 0.38477445, y: 0.4177055, z: 0.83333325}
-  m_ConstrainProportionsScale: 0
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.191}
+  m_LocalScale: {x: 0.09, y: 0.09770268, z: 0.19491938}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 6716001593091053129}
   m_Father: {fileID: 2528867890858492505}
-  m_LocalEulerAnglesHint: {x: 81.219, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 2.813}
+  m_AnchoredPosition: {x: 0.0688, y: 2.0315}
   m_SizeDelta: {x: 5, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &3164961737742022180

@@ -10,6 +10,7 @@ public class PassengerController : MonoBehaviour
     public PassengerColor color;
     public Direction arrowDirection;
 
+    public Animator animator;
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float finalMoveSpeed = 6f;
@@ -21,18 +22,18 @@ public class PassengerController : MonoBehaviour
     public GridCell currentCell;
 
     public bool isInWaiting = false;
-    public bool isMoving = false;
 
     public GameObject arrowInstance;
 
     private Transform arrowPoint;
-     
+    public bool isMoving = false;
+
 
     private void Awake()
     {
         arrowPoint = transform.GetChild(0);
     }
-     
+
 
     public void MoveAlongPath(Action onReachedEdge)
     {
@@ -40,6 +41,8 @@ public class PassengerController : MonoBehaviour
             return;
 
         isMoving = true;
+        SetArrowVisible(false);
+        SetWalking(true);
         StartCoroutine(MoveCoroutine(onReachedEdge));
     }
 
@@ -49,6 +52,8 @@ public class PassengerController : MonoBehaviour
             return;
 
         isMoving = true;
+        SetArrowVisible(false);
+        SetWalking(true);
         StartCoroutine(MoveToPositionCoroutine(targetPos, onArrived));
     }
      
@@ -61,6 +66,8 @@ public class PassengerController : MonoBehaviour
         if (waypoints.Count == 0)
         {
             isMoving = false;
+            SetArrowVisible(false);
+            SetWalking(false);
             onReachedEdge?.Invoke();
             yield break;
         }
@@ -79,13 +86,22 @@ public class PassengerController : MonoBehaviour
                 UpdateArrowDirection(path[i], path[i + 1]);
             }
 
+            // Rotate towards next waypoint
+            Vector3 direction = target - transform.position;
+            direction.y = 0f;
+
+            if (direction.sqrMagnitude > 0.001f)
+            {
+                transform.rotation = Quaternion.LookRotation(direction);
+            }
+
             while (Vector3.Distance(transform.position, target) > 0.01f)
             {
                 transform.position = Vector3.MoveTowards(
                     transform.position,
                     target,
-                    moveSpeed * Time.deltaTime
-                );
+                    moveSpeed * Time.deltaTime);
+
                 yield return null;
             }
 
@@ -97,13 +113,13 @@ public class PassengerController : MonoBehaviour
                     GameManager.Instance._grid.GetCell(path[i].x, path[i].y);
 
                 if (finalCell != null)
-                {
                     SetCell(finalCell);
-                }
             }
         }
 
         isMoving = false;
+        SetArrowVisible(false);
+        SetWalking(false);
         onReachedEdge?.Invoke();
     }
 
@@ -114,7 +130,13 @@ public class PassengerController : MonoBehaviour
         Vector3 startPos = transform.position;
         float journeyLength = Vector3.Distance(startPos, targetPos);
         float startTime = Time.time;
+        Vector3 direction = targetPos - transform.position;
+        direction.y = 0f;
 
+        if (direction.sqrMagnitude > 0.001f)
+        {
+            transform.rotation = Quaternion.LookRotation(direction);
+        }
         while (Vector3.Distance(transform.position, targetPos) > 0.01f)
         {
             float distCovered = (Time.time - startTime) * finalMoveSpeed;
@@ -300,26 +322,45 @@ public class PassengerController : MonoBehaviour
 
         transform.position = cell.transform.position + Vector3.up * 0f;
     }
-     
+
     public void ApplyColor()
     {
-        Renderer renderer = GetComponent<Renderer>();
-        if (renderer == null)
-            return;
-
-        renderer.material.color = color switch
+        Color targetColor = color switch
         {
-            PassengerColor.Red => Color.red,
-            PassengerColor.Blue => Color.blue,
-            PassengerColor.Green => Color.green,
-            PassengerColor.Yellow => Color.yellow,
-            PassengerColor.Orange => new Color(1f, 0.5f, 0f),
-            PassengerColor.Purple => new Color(0.5f, 0f, 0.5f),
-            PassengerColor.Pink => new Color(1f, 0.75f, 0.8f),
-            PassengerColor.Cyan => Color.cyan,
-            PassengerColor.Gray => Color.gray,
-            PassengerColor.White => Color.white,
+            PassengerColor.Red => new Color32(255, 70, 70, 255),    // Candy Red
+            PassengerColor.Blue => new Color32(50, 155, 255, 255),   // Bright Blue
+            PassengerColor.Green => new Color32(70, 220, 90, 255),    // Lime Green
+            PassengerColor.Yellow => new Color32(255, 220, 40, 255),   // Candy Yellow
+            PassengerColor.Orange => new Color32(255, 145, 35, 255),   // Orange Pop
+            PassengerColor.Purple => new Color32(170, 80, 255, 255),   // Bright Purple
+            PassengerColor.Pink => new Color32(255, 95, 180, 255),   // Bubblegum Pink
+            PassengerColor.Cyan => new Color32(50, 225, 255, 255),   // Aqua
+            PassengerColor.Gray => new Color32(145, 145, 160, 255),  // Neutral Gray
+            PassengerColor.White => new Color32(255, 255, 255, 255),  // White
             _ => Color.white
         };
-    } 
+
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+
+        foreach (Renderer renderer in renderers)
+        {
+            renderer.material.color = targetColor;
+        }
+    }
+    private void SetArrowVisible(bool visible)
+    {
+        if (arrowInstance != null)
+            arrowInstance.SetActive(visible);
+    }
+    private void SetWalking(bool value)
+    {
+        animator.SetBool("isWalking", value);
+    }
+    public void SetWaiting(bool value)
+    {
+        isMoving = false;
+        isInWaiting = value;
+
+        SetWalking(false);
+    }
 }

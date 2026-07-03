@@ -32,11 +32,17 @@ public class Bus : MonoBehaviour
 
     public int boarded = 0;
 
+    /// <summary>
+    /// False while the elevator is moving into position.
+    /// </summary>
+    public bool IsReady { get; private set; }
+
     public BusSpawner Spawner { get; set; }
 
     private readonly Queue<PassengerController> boardingQueue = new();
-    private bool isProcessingBoarding = false;
-    private bool leaving = false;
+
+    private bool isProcessingBoarding;
+    private bool leaving;
 
     private Vector3 leftClosedPos;
     private Vector3 leftOpenPos;
@@ -46,6 +52,8 @@ public class Bus : MonoBehaviour
 
     private void Awake()
     {
+        IsReady = false;
+
         if (leftDoor != null)
         {
             leftClosedPos = leftDoor.localPosition;
@@ -58,7 +66,12 @@ public class Bus : MonoBehaviour
             rightOpenPos = rightClosedPos + Vector3.right * doorOpenDistance;
         }
 
-        StartCoroutine(MoveDoors(true));
+        StartCoroutine(MoveDoors(false));
+    }
+
+    public void SetReady(bool ready)
+    {
+        IsReady = ready;
     }
 
     public bool HasSpace()
@@ -77,6 +90,12 @@ public class Bus : MonoBehaviour
     public void Board(PassengerController passenger)
     {
         if (passenger == null)
+            return;
+
+        if (leaving)
+            return;
+
+        if (!IsReady)
             return;
 
         boardingQueue.Enqueue(passenger);
@@ -122,6 +141,9 @@ public class Bus : MonoBehaviour
         {
             PassengerController passenger = boardingQueue.Dequeue();
 
+            if (passenger == null)
+                continue;
+
             if (passenger.isInWaiting)
                 waitingPassengers.Add(passenger);
             else
@@ -134,7 +156,6 @@ public class Bus : MonoBehaviour
                 break;
 
             BoardPassenger(passenger);
-
             yield return null;
         }
 
@@ -144,7 +165,6 @@ public class Bus : MonoBehaviour
                 break;
 
             BoardPassenger(passenger);
-
             yield return null;
         }
 
@@ -173,7 +193,7 @@ public class Bus : MonoBehaviour
             if (passenger.isInWaiting)
                 GameManager.Instance._waitingArea.RemovePassenger(passenger);
 
-            if (boarded >= capacity)
+            if (boarded >= capacity && !leaving)
                 StartCoroutine(FinishBoarding());
         });
     }
@@ -220,6 +240,8 @@ public class Bus : MonoBehaviour
 
     private IEnumerator LeaveRoutine()
     {
+        GameManager.Instance.OnBusLeft(this);
+
         Vector3 target = transform.position + Vector3.up * leaveHeight;
 
         while (Vector3.Distance(transform.position, target) > 0.02f)
@@ -231,8 +253,6 @@ public class Bus : MonoBehaviour
 
             yield return null;
         }
-
-        GameManager.Instance.OnBusLeft(this);
 
         Destroy(gameObject);
     }
@@ -269,17 +289,38 @@ public class Bus : MonoBehaviour
     {
         switch (passengerColor)
         {
-            case PassengerColor.Red: return Color.red;
-            case PassengerColor.Blue: return Color.blue;
-            case PassengerColor.Green: return Color.green;
-            case PassengerColor.Yellow: return Color.yellow;
-            case PassengerColor.Orange: return new Color(1f, 0.5f, 0f);
-            case PassengerColor.Purple: return new Color(0.5f, 0f, 0.5f);
-            case PassengerColor.Pink: return new Color(1f, 0.75f, 0.8f);
-            case PassengerColor.Cyan: return Color.cyan;
-            case PassengerColor.Gray: return Color.gray;
-            case PassengerColor.White: return Color.white;
-            default: return Color.white;
+            case PassengerColor.Red:
+                return new Color32(255, 70, 70, 255);
+
+            case PassengerColor.Blue:
+                return new Color32(50, 155, 255, 255);
+
+            case PassengerColor.Green:
+                return new Color32(70, 220, 90, 255);
+
+            case PassengerColor.Yellow:
+                return new Color32(255, 220, 40, 255);
+
+            case PassengerColor.Orange:
+                return new Color32(255, 145, 35, 255);
+
+            case PassengerColor.Purple:
+                return new Color32(170, 80, 255, 255);
+
+            case PassengerColor.Pink:
+                return new Color32(255, 95, 180, 255);
+
+            case PassengerColor.Cyan:
+                return new Color32(50, 225, 255, 255);
+
+            case PassengerColor.Gray:
+                return new Color32(145, 145, 160, 255);
+
+            case PassengerColor.White:
+                return new Color32(255, 255, 255, 255);
+
+            default:
+                return Color.white;
         }
     }
 }
